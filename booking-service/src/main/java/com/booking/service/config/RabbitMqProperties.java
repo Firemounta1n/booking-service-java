@@ -64,5 +64,4 @@ public class RabbitMqProperties {
         private String bookingJobDenied =
             "BookingService.Catalog.Async.Api.Contracts.Events.BookingJobDenied, BookingService.Catalog.Async.Api.Contracts";
     }
-
 }
