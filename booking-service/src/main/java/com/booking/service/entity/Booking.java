@@ -137,8 +137,7 @@ public class Booking {
         if (previousStatus == null) {
             throw new BusinessException("Невозможно откатить отмену: предыдущий статус не установлен");
         }
-        // КРИТИЧЕСКАЯ ОШИБКА: устанавливаем CANCELLED вместо previousStatus
-        this.status = BookingStatus.CANCELLED;
+        this.status = this.previousStatus;
         this.previousStatus = null;
         this.cancellationSentAt = null;
     }
