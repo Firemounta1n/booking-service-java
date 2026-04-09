@@ -46,4 +46,16 @@
         </createIndex>
     </changeSet>
 
+    <changeSet id="2" author="booking-service">
+        <comment>Добавление поддержки компенсирующих транзакций для отмены бронирования</comment>
+
+        <addColumn tableName="bookings">
+            <column name="previous_status" type="INTEGER"/>
+        </addColumn>
+
+        <addColumn tableName="bookings">
+            <column name="cancellation_sent_at" type="TIMESTAMP WITH TIME ZONE"/>
+        </addColumn>
+    </changeSet>
+
 </databaseChangeLog>

@@ -25,7 +25,12 @@ public enum BookingStatus {
     /**
      * Отменено (3)
      */
-    CANCELLED(3);
+    CANCELLED(3),
+
+    /**
+     * Отмена в процессе (4)
+     */
+    CANCELLATION_PENDING(4);
 
     private final int value;
 
