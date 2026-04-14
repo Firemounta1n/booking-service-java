@@ -8,4 +8,5 @@ import java.time.OffsetDateTime;
 public interface CurrentDateTimeProvider {
 
     OffsetDateTime utcNow();
+
 }
