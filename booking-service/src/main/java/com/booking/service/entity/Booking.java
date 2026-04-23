@@ -100,6 +100,7 @@ public class Booking {
         if (status != BookingStatus.AWAIT_CONFIRMATION) {
             throw new BusinessException("Статус заявки некорректен, заявка должна быть в статусе " + BookingStatus.AWAIT_CONFIRMATION);
         }
+
         this.status = BookingStatus.CONFIRMED;
     }
 
