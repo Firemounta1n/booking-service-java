@@ -68,13 +68,13 @@ class BookingServiceStatisticsTest {
         var response = bookingService.getStatistics(dateFrom, dateTo);
 
         assertThat(response.totalBookings()).isEqualTo(8L);
-        assertThat(response.bookingsByStatus().keySet()).containsExactlyInAnyOrder(BookingStatus.values());
-        assertThat(response.bookingsByStatus())
-                .containsEntry(BookingStatus.NONE, 0L)
-                .containsEntry(BookingStatus.AWAIT_CONFIRMATION, 0L)
-                .containsEntry(BookingStatus.CONFIRMED, 3L)
-                .containsEntry(BookingStatus.CANCELLATION_PENDING, 2L)
-                .containsEntry(BookingStatus.CANCELLED, 0L);
+        assertThat(response.byStatus())
+                .containsOnlyKeys("none", "awaitConfirmation", "confirmed", "cancellationPending", "cancelled")
+                .containsEntry("none", 0L)
+                .containsEntry("awaitConfirmation", 0L)
+                .containsEntry("confirmed", 3L)
+                .containsEntry("cancellationPending", 2L)
+                .containsEntry("cancelled", 0L);
         assertThat(response.topResources()).containsExactly(
                 new TopResourceResponse(10L, 5L),
                 new TopResourceResponse(20L, 3L)

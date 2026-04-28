@@ -20,7 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.util.EnumMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -159,20 +159,30 @@ public class BookingService {
         long totalBookings = bookingRepository.countByCreatedAtGreaterThanEqualAndCreatedAtLessThan(
                 createdAtFrom, createdAtTo);
 
-        Map<BookingStatus, Long> bookingsByStatus = new EnumMap<>(BookingStatus.class);
+        Map<String, Long> byStatus = new LinkedHashMap<>();
         for (BookingStatus status : BookingStatus.values()) {
-            bookingsByStatus.put(status, 0L);
+            byStatus.put(toStatisticsStatusKey(status), 0L);
         }
         bookingRepository.countByStatus(createdAtFrom, createdAtTo)
-                .forEach(row -> bookingsByStatus.put(row.getStatus(), row.getBookingCount()));
+                .forEach(row -> byStatus.put(toStatisticsStatusKey(row.getStatus()), row.getBookingCount()));
 
         List<TopResourceResponse> topResources = bookingRepository
-                .findPopularResources(createdAtFrom, createdAtTo, PageRequest.of(0, 4))
+                .findPopularResources(createdAtFrom, createdAtTo, PageRequest.of(0, 5))
                 .stream()
                 .map(row -> new TopResourceResponse(row.getResourceId(), row.getBookingCount()))
                 .toList();
 
-        return new BookingStatisticsResponse(totalBookings, bookingsByStatus, topResources);
+        return new BookingStatisticsResponse(totalBookings, byStatus, topResources);
+    }
+
+    private String toStatisticsStatusKey(BookingStatus status) {
+        return switch (status) {
+            case NONE -> "none";
+            case AWAIT_CONFIRMATION -> "awaitConfirmation";
+            case CONFIRMED -> "confirmed";
+            case CANCELLATION_PENDING -> "cancellationPending";
+            case CANCELLED -> "cancelled";
+        };
     }
 
     // === EVENT HANDLERS (Обработка асинхронных событий от Catalog Service) ===
