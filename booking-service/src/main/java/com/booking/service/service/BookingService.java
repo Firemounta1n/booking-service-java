@@ -2,6 +2,7 @@ package com.booking.service.service;
 
 import com.booking.service.config.CurrentDateTimeProvider;
 import com.booking.service.dto.response.BookingStatisticsResponse;
+import com.booking.service.dto.response.BookingStatusHistoryPageResponse;
 import com.booking.service.dto.response.BookingStatusHistoryResponse;
 import com.booking.service.dto.response.TopResourceResponse;
 import com.booking.service.entity.Booking;
@@ -168,10 +169,25 @@ public class BookingService {
      * @return страница записей истории
      */
     @Transactional(readOnly = true)
-    public Page<BookingStatusHistoryResponse> getStatusHistory(Long id, int pageNumber, int pageSize) {
-        Pageable pageable = PageRequest.of(pageNumber, pageSize, Sort.by(Sort.Direction.DESC, "changedAt"));
-        return bookingStatusHistoryRepository.findByBookingId(id, pageable)
-                .map(this::toStatusHistoryResponse);
+    public BookingStatusHistoryPageResponse getStatusHistory(Long id, int page, int pageSize) {
+        if (!bookingRepository.existsById(id)) {
+            throw new BusinessException("Бронирование с указанным id: '" + id + "' не найдено.");
+        }
+        if (page < 1) {
+            throw new BusinessException("Параметр page должен быть больше или равен 1");
+        }
+        if (pageSize < 1) {
+            throw new BusinessException("Параметр pageSize должен быть больше или равен 1");
+        }
+
+        Pageable pageable = PageRequest.of(page - 1, pageSize, Sort.by(Sort.Direction.DESC, "changedAt"));
+        Page<BookingStatusHistory> historyPage = bookingStatusHistoryRepository.findByBookingId(id, pageable);
+        List<BookingStatusHistoryResponse> items = historyPage.getContent()
+                .stream()
+                .map(this::toStatusHistoryResponse)
+                .toList();
+
+        return new BookingStatusHistoryPageResponse(id, historyPage.getTotalElements(), items);
     }
 
     /**

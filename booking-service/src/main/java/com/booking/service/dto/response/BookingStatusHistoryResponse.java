@@ -9,9 +9,9 @@ import java.time.OffsetDateTime;
  */
 public record BookingStatusHistoryResponse(
         Long id,
-        BookingStatus previousStatus,
+        BookingStatus oldStatus,
         BookingStatus newStatus,
         OffsetDateTime changedAt,
         String reason,
-        String initiator) {
+        String initiatedBy) {
 }
