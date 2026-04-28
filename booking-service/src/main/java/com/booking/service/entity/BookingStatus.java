@@ -23,14 +23,14 @@ public enum BookingStatus {
     CONFIRMED(2),
 
     /**
-     * Отменено (3)
+     * Отмена в процессе (3)
      */
-    CANCELLED(3),
+    CANCELLATION_PENDING(3),
 
     /**
-     * Отмена в процессе (4)
+     * Отменено (4)
      */
-    CANCELLATION_PENDING(4);
+    CANCELLED(4);
 
     private final int value;
 
