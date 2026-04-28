@@ -84,6 +84,17 @@ class BookingCancellationTest {
         assertThat(booking.getCancellationSentAt()).isNull();
     }
 
+    @Test
+    void confirm_fromCancelled_throwsExceptionWithAllowedStatuses() {
+        Booking booking = createBookingWithStatus(BookingStatus.AWAIT_CONFIRMATION);
+        booking.cancel(LocalDate.of(2026, 1, 15));
+
+        assertThatThrownBy(booking::confirm)
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining(BookingStatus.AWAIT_CONFIRMATION.name())
+                .hasMessageContaining(BookingStatus.CANCELLATION_PENDING.name());
+    }
+
     // === rollbackCancellation ===
 
     @Test

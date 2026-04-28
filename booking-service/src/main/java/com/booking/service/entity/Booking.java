@@ -98,7 +98,8 @@ public class Booking {
      */
     public void confirm() {
         if (status != BookingStatus.AWAIT_CONFIRMATION && status != BookingStatus.CANCELLATION_PENDING) {
-            throw new BusinessException("Статус заявки некорректен, заявка должна быть в статусе " + BookingStatus.AWAIT_CONFIRMATION);
+            throw new BusinessException("Статус заявки некорректен, заявка должна быть в статусе "
+                    + BookingStatus.AWAIT_CONFIRMATION + " или " + BookingStatus.CANCELLATION_PENDING);
         }
         this.status = BookingStatus.CONFIRMED;
         this.previousStatus = null;
