@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -18,6 +19,18 @@ import java.util.UUID;
  */
 @Repository
 public interface BookingRepository extends JpaRepository<Booking, Long> {
+
+    interface BookingStatusCount {
+        BookingStatus getStatus();
+
+        long getBookingCount();
+    }
+
+    interface ResourceBookingCount {
+        Long getResourceId();
+
+        long getBookingCount();
+    }
 
     /**
      * Найти бронирование по идентификатору запроса в Catalog Service
@@ -52,4 +65,30 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
      */
     @Query("SELECT b.status FROM Booking b WHERE b.id = :id")
     BookingStatus findStatusById(@Param("id") Long id);
+
+    /**
+     * Посчитать общее количество бронирований за период создания.
+     */
+    long countByCreatedAtGreaterThanEqualAndCreatedAtLessThan(OffsetDateTime createdAtFrom,
+                                                              OffsetDateTime createdAtTo);
+
+    /**
+     * Посчитать количество бронирований за период создания в разрезе статусов.
+     */
+    @Query("SELECT b.status AS status, COUNT(b) AS bookingCount FROM Booking b " +
+           "WHERE b.createdAt >= :createdAtFrom AND b.createdAt < :createdAtTo " +
+           "GROUP BY b.status")
+    List<BookingStatusCount> countByStatus(@Param("createdAtFrom") OffsetDateTime createdAtFrom,
+                                           @Param("createdAtTo") OffsetDateTime createdAtTo);
+
+    /**
+     * Найти самые популярные ресурсы за период создания.
+     */
+    @Query("SELECT b.resourceId AS resourceId, COUNT(b) AS bookingCount FROM Booking b " +
+           "WHERE b.createdAt >= :createdAtFrom AND b.createdAt < :createdAtTo " +
+           "GROUP BY b.resourceId " +
+           "ORDER BY COUNT(b) DESC, b.resourceId ASC")
+    List<ResourceBookingCount> findPopularResources(@Param("createdAtFrom") OffsetDateTime createdAtFrom,
+                                                    @Param("createdAtTo") OffsetDateTime createdAtTo,
+                                                    Pageable pageable);
 }

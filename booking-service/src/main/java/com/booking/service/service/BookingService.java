@@ -1,6 +1,8 @@
 package com.booking.service.service;
 
 import com.booking.service.config.CurrentDateTimeProvider;
+import com.booking.service.dto.response.BookingStatisticsResponse;
+import com.booking.service.dto.response.TopResourceResponse;
 import com.booking.service.entity.Booking;
 import com.booking.service.entity.BookingStatus;
 import com.booking.service.exception.BusinessException;
@@ -16,7 +18,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -28,6 +34,13 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Slf4j
 public class BookingService {
+
+    private static final List<BookingStatus> STATISTICS_STATUSES = List.of(
+            BookingStatus.AWAIT_CONFIRMATION,
+            BookingStatus.CONFIRMED,
+            BookingStatus.CANCELLATION_PENDING,
+            BookingStatus.CANCELLED
+    );
 
     private final BookingRepository bookingRepository;
     private final BookingEventPublisher bookingEventPublisher;
@@ -129,6 +142,59 @@ public class BookingService {
     @Transactional(readOnly = true)
     public BookingStatus getStatusById(Long id) {
         return bookingRepository.findStatusById(id);
+    }
+
+    /**
+     * Получить агрегированную статистику по бронированиям за период создания.
+     *
+     * @param dateFrom дата начала периода включительно
+     * @param dateTo дата окончания периода включительно
+     * @return статистика бронирований
+     */
+    @Transactional(readOnly = true)
+    public BookingStatisticsResponse getStatistics(LocalDate dateFrom, LocalDate dateTo) {
+        if (dateFrom == null || dateTo == null) {
+            throw new BusinessException("Параметры dateFrom и dateTo обязательны");
+        }
+        if (dateTo.isBefore(dateFrom)) {
+            throw new BusinessException("dateTo не может быть раньше dateFrom");
+        }
+
+        OffsetDateTime createdAtFrom = dateFrom.atStartOfDay().atOffset(ZoneOffset.UTC);
+        OffsetDateTime createdAtTo = dateTo.plusDays(1).atStartOfDay().atOffset(ZoneOffset.UTC);
+
+        long totalBookings = bookingRepository.countByCreatedAtGreaterThanEqualAndCreatedAtLessThan(
+                createdAtFrom, createdAtTo);
+
+        Map<String, Long> byStatus = new LinkedHashMap<>();
+        for (BookingStatus status : STATISTICS_STATUSES) {
+            byStatus.put(toStatisticsStatusKey(status), 0L);
+        }
+        bookingRepository.countByStatus(createdAtFrom, createdAtTo)
+                .forEach(row -> {
+                    String statusKey = toStatisticsStatusKey(row.getStatus());
+                    if (statusKey != null) {
+                        byStatus.put(statusKey, row.getBookingCount());
+                    }
+                });
+
+        List<TopResourceResponse> topResources = bookingRepository
+                .findPopularResources(createdAtFrom, createdAtTo, PageRequest.of(0, 5))
+                .stream()
+                .map(row -> new TopResourceResponse(row.getResourceId(), row.getBookingCount()))
+                .toList();
+
+        return new BookingStatisticsResponse(totalBookings, byStatus, topResources);
+    }
+
+    private String toStatisticsStatusKey(BookingStatus status) {
+        return switch (status) {
+            case AWAIT_CONFIRMATION -> "awaitConfirmation";
+            case CONFIRMED -> "confirmed";
+            case CANCELLATION_PENDING -> "cancellationPending";
+            case CANCELLED -> "cancelled";
+            case NONE -> null;
+        };
     }
 
     // === EVENT HANDLERS (Обработка асинхронных событий от Catalog Service) ===
