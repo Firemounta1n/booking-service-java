@@ -70,6 +70,20 @@ class BookingCancellationTest {
         assertThat(booking.getCancellationSentAt()).isNull();
     }
 
+    // === confirm race condition ===
+
+    @Test
+    void confirm_fromCancellationPending_success() {
+        Booking booking = createBookingWithStatus(BookingStatus.AWAIT_CONFIRMATION);
+        booking.startCancellation(NOW);
+
+        booking.confirm();
+
+        assertThat(booking.getStatus()).isEqualTo(BookingStatus.CONFIRMED);
+        assertThat(booking.getPreviousStatus()).isNull();
+        assertThat(booking.getCancellationSentAt()).isNull();
+    }
+
     // === rollbackCancellation ===
 
     @Test

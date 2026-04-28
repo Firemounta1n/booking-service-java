@@ -218,6 +218,11 @@ public class BookingService {
         log.info("Найдено бронирование: id={}, статус={}. Подтверждаем...",
                 booking.getId(), booking.getStatus());
 
+        if (booking.getStatus() == BookingStatus.CANCELLATION_PENDING) {
+            log.warn("Обнаружен race condition при подтверждении бронирования: id={}, requestId={}",
+                    booking.getId(), requestId);
+        }
+
         booking.confirm();
         bookingRepository.save(booking);
 

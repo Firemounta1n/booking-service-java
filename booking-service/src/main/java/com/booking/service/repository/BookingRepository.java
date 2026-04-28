@@ -91,4 +91,14 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     List<ResourceBookingCount> findPopularResources(@Param("createdAtFrom") OffsetDateTime createdAtFrom,
                                                     @Param("createdAtTo") OffsetDateTime createdAtTo,
                                                     Pageable pageable);
+
+    /**
+     * Найти зависшие отмены для повторной отправки команды отмены.
+     */
+    @Query("SELECT b FROM Booking b " +
+           "WHERE b.status = :status " +
+           "AND b.cancellationSentAt <= :sentBefore " +
+           "AND b.catalogRequestId IS NOT NULL")
+    List<Booking> findStaleCancellations(@Param("status") BookingStatus status,
+                                         @Param("sentBefore") OffsetDateTime sentBefore);
 }
