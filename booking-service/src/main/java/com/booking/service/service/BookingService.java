@@ -1,6 +1,8 @@
 package com.booking.service.service;
 
 import com.booking.service.config.CurrentDateTimeProvider;
+import com.booking.service.dto.response.BookingStatisticsResponse;
+import com.booking.service.dto.response.TopResourceResponse;
 import com.booking.service.entity.Booking;
 import com.booking.service.entity.BookingStatus;
 import com.booking.service.exception.BusinessException;
@@ -16,7 +18,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -129,6 +135,44 @@ public class BookingService {
     @Transactional(readOnly = true)
     public BookingStatus getStatusById(Long id) {
         return bookingRepository.findStatusById(id);
+    }
+
+    /**
+     * Получить агрегированную статистику по бронированиям за период создания.
+     *
+     * @param dateFrom дата начала периода включительно
+     * @param dateTo дата окончания периода включительно
+     * @return статистика бронирований
+     */
+    @Transactional(readOnly = true)
+    public BookingStatisticsResponse getStatistics(LocalDate dateFrom, LocalDate dateTo) {
+        if (dateFrom == null || dateTo == null) {
+            throw new BusinessException("Параметры dateFrom и dateTo обязательны");
+        }
+        if (dateTo.isBefore(dateFrom)) {
+            throw new BusinessException("dateTo не может быть раньше dateFrom");
+        }
+
+        OffsetDateTime createdAtFrom = dateFrom.atStartOfDay().atOffset(ZoneOffset.UTC);
+        OffsetDateTime createdAtTo = dateTo.plusDays(1).atStartOfDay().atOffset(ZoneOffset.UTC);
+
+        long totalBookings = bookingRepository.countByCreatedAtGreaterThanEqualAndCreatedAtLessThan(
+                createdAtFrom, createdAtTo);
+
+        Map<BookingStatus, Long> bookingsByStatus = new EnumMap<>(BookingStatus.class);
+        for (BookingStatus status : BookingStatus.values()) {
+            bookingsByStatus.put(status, 0L);
+        }
+        bookingRepository.countByStatus(createdAtFrom, createdAtTo)
+                .forEach(row -> bookingsByStatus.put(row.getStatus(), row.getBookingCount()));
+
+        List<TopResourceResponse> topResources = bookingRepository
+                .findPopularResources(createdAtFrom, createdAtTo, PageRequest.of(0, 4))
+                .stream()
+                .map(row -> new TopResourceResponse(row.getResourceId(), row.getBookingCount()))
+                .toList();
+
+        return new BookingStatisticsResponse(totalBookings, bookingsByStatus, topResources);
     }
 
     // === EVENT HANDLERS (Обработка асинхронных событий от Catalog Service) ===
