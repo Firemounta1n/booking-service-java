@@ -69,16 +69,17 @@ class BookingServiceStatisticsTest {
 
         assertThat(response.totalBookings()).isEqualTo(8L);
         assertThat(response.byStatus())
-                .containsOnlyKeys("none", "awaitConfirmation", "confirmed", "cancellationPending", "cancelled")
-                .containsEntry("none", 0L)
+                .containsOnlyKeys("awaitConfirmation", "confirmed", "cancellationPending", "cancelled")
                 .containsEntry("awaitConfirmation", 0L)
                 .containsEntry("confirmed", 3L)
                 .containsEntry("cancellationPending", 2L)
                 .containsEntry("cancelled", 0L);
+        assertThat(response.byStatus()).doesNotContainKey("none");
         assertThat(response.topResources()).containsExactly(
                 new TopResourceResponse(10L, 5L),
                 new TopResourceResponse(20L, 3L)
         );
+        assertThat(response.topResources().getFirst().bookingsCount()).isEqualTo(5L);
 
         verify(bookingRepository).countByCreatedAtGreaterThanEqualAndCreatedAtLessThan(createdAtFrom, createdAtTo);
         verify(bookingRepository).countByStatus(createdAtFrom, createdAtTo);

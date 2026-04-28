@@ -35,6 +35,13 @@ import java.util.UUID;
 @Slf4j
 public class BookingService {
 
+    private static final List<BookingStatus> STATISTICS_STATUSES = List.of(
+            BookingStatus.AWAIT_CONFIRMATION,
+            BookingStatus.CONFIRMED,
+            BookingStatus.CANCELLATION_PENDING,
+            BookingStatus.CANCELLED
+    );
+
     private final BookingRepository bookingRepository;
     private final BookingEventPublisher bookingEventPublisher;
     private final CurrentDateTimeProvider dateTimeProvider;
@@ -160,11 +167,16 @@ public class BookingService {
                 createdAtFrom, createdAtTo);
 
         Map<String, Long> byStatus = new LinkedHashMap<>();
-        for (BookingStatus status : BookingStatus.values()) {
+        for (BookingStatus status : STATISTICS_STATUSES) {
             byStatus.put(toStatisticsStatusKey(status), 0L);
         }
         bookingRepository.countByStatus(createdAtFrom, createdAtTo)
-                .forEach(row -> byStatus.put(toStatisticsStatusKey(row.getStatus()), row.getBookingCount()));
+                .forEach(row -> {
+                    String statusKey = toStatisticsStatusKey(row.getStatus());
+                    if (statusKey != null) {
+                        byStatus.put(statusKey, row.getBookingCount());
+                    }
+                });
 
         List<TopResourceResponse> topResources = bookingRepository
                 .findPopularResources(createdAtFrom, createdAtTo, PageRequest.of(0, 5))
@@ -177,11 +189,11 @@ public class BookingService {
 
     private String toStatisticsStatusKey(BookingStatus status) {
         return switch (status) {
-            case NONE -> "none";
             case AWAIT_CONFIRMATION -> "awaitConfirmation";
             case CONFIRMED -> "confirmed";
             case CANCELLATION_PENDING -> "cancellationPending";
             case CANCELLED -> "cancelled";
+            case NONE -> null;
         };
     }
 
