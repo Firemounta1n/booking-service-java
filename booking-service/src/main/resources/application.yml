@@ -23,6 +23,12 @@ springdoc:
 server:
   port: 8001
 
+# Booking domain settings
+booking:
+  cancellation:
+    retry-timeout: PT5M
+    retry-interval: PT1M
+
 # RabbitMQ Rebus Integration
 rabbitmq:
   rebus:

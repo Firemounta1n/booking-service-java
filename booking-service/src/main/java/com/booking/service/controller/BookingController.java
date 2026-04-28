@@ -3,15 +3,17 @@ package com.booking.service.controller;
 import com.booking.service.dto.request.CreateBookingRequest;
 import com.booking.service.dto.request.GetBookingsByFilterRequest;
 import com.booking.service.dto.response.BookingResponse;
+import com.booking.service.dto.response.BookingStatisticsResponse;
 import com.booking.service.entity.Booking;
 import com.booking.service.entity.BookingStatus;
 import com.booking.service.service.BookingService;
 import com.booking.service.service.mapper.BookingMapper;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -65,6 +67,16 @@ public class BookingController {
     @GetMapping("{id}/status")
     public BookingStatus getStatus(@PathVariable Long id) {
         return bookingService.getStatusById(id);
+    }
+
+    /**
+     * Получить агрегированную статистику бронирований за период.
+     */
+    @GetMapping("statistics")
+    public BookingStatisticsResponse getStatistics(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo) {
+        return bookingService.getStatistics(dateFrom, dateTo);
     }
 
     /**
