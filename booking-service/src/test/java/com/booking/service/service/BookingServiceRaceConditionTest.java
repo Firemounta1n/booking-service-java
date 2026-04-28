@@ -3,11 +3,14 @@ package com.booking.service.service;
 import com.booking.service.config.CurrentDateTimeProvider;
 import com.booking.service.entity.Booking;
 import com.booking.service.entity.BookingStatus;
+import com.booking.service.entity.BookingStatusHistory;
 import com.booking.service.messaging.listener.BookingEventPublisher;
 import com.booking.service.repository.BookingRepository;
+import com.booking.service.repository.BookingStatusHistoryRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -30,6 +33,9 @@ class BookingServiceRaceConditionTest {
     private BookingRepository bookingRepository;
 
     @Mock
+    private BookingStatusHistoryRepository bookingStatusHistoryRepository;
+
+    @Mock
     private BookingEventPublisher bookingEventPublisher;
 
     @Mock
@@ -39,7 +45,12 @@ class BookingServiceRaceConditionTest {
 
     @BeforeEach
     void setUp() {
-        bookingService = new BookingService(bookingRepository, bookingEventPublisher, dateTimeProvider);
+        bookingService = new BookingService(
+                bookingRepository,
+                bookingStatusHistoryRepository,
+                bookingEventPublisher,
+                dateTimeProvider
+        );
     }
 
     @Test
@@ -50,6 +61,7 @@ class BookingServiceRaceConditionTest {
         booking.startCancellation(NOW.plusMinutes(1));
 
         when(bookingRepository.findByCatalogRequestId(requestId)).thenReturn(Optional.of(booking));
+        when(dateTimeProvider.utcNow()).thenReturn(NOW.plusMinutes(2));
 
         bookingService.handleBookingJobConfirmed(requestId);
 
@@ -57,5 +69,12 @@ class BookingServiceRaceConditionTest {
         assertThat(booking.getPreviousStatus()).isNull();
         assertThat(booking.getCancellationSentAt()).isNull();
         verify(bookingRepository).save(booking);
+
+        ArgumentCaptor<BookingStatusHistory> historyCaptor = ArgumentCaptor.forClass(BookingStatusHistory.class);
+        verify(bookingStatusHistoryRepository).save(historyCaptor.capture());
+        assertThat(historyCaptor.getValue().getPreviousStatus()).isEqualTo(BookingStatus.CANCELLATION_PENDING);
+        assertThat(historyCaptor.getValue().getNewStatus()).isEqualTo(BookingStatus.CONFIRMED);
+        assertThat(historyCaptor.getValue().getChangedAt()).isEqualTo(NOW.plusMinutes(2));
+        assertThat(historyCaptor.getValue().getInitiator()).isEqualTo("System");
     }
 }

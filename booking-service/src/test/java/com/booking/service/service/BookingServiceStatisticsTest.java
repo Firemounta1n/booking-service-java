@@ -6,6 +6,7 @@ import com.booking.service.entity.BookingStatus;
 import com.booking.service.exception.BusinessException;
 import com.booking.service.messaging.listener.BookingEventPublisher;
 import com.booking.service.repository.BookingRepository;
+import com.booking.service.repository.BookingStatusHistoryRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -33,6 +34,9 @@ class BookingServiceStatisticsTest {
     private BookingRepository bookingRepository;
 
     @Mock
+    private BookingStatusHistoryRepository bookingStatusHistoryRepository;
+
+    @Mock
     private BookingEventPublisher bookingEventPublisher;
 
     @Mock
@@ -42,7 +46,12 @@ class BookingServiceStatisticsTest {
 
     @BeforeEach
     void setUp() {
-        bookingService = new BookingService(bookingRepository, bookingEventPublisher, dateTimeProvider);
+        bookingService = new BookingService(
+                bookingRepository,
+                bookingStatusHistoryRepository,
+                bookingEventPublisher,
+                dateTimeProvider
+        );
     }
 
     @Test
