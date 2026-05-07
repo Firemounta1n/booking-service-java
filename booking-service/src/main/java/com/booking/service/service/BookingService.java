@@ -10,6 +10,7 @@ import com.booking.service.entity.BookingStatus;
 import com.booking.service.entity.BookingStatusHistory;
 import com.booking.service.entity.ProcessedEvent;
 import com.booking.service.exception.BusinessException;
+import com.booking.service.messaging.contracts.BookingStatusChangedEvent;
 import com.booking.service.messaging.contracts.CancelBookingJobByRequestIdRequest;
 import com.booking.service.messaging.contracts.CreateBookingJobRequest;
 import com.booking.service.messaging.listener.BookingEventPublisher;
@@ -110,8 +111,10 @@ public class BookingService {
         booking.startCancellation(now);
 
         bookingRepository.save(booking);
+        String reason = "Пользователь запросил отмену бронирования";
         saveStatusHistory(booking, previousStatus, booking.getStatus(), now,
-                "Пользователь запросил отмену бронирования", String.valueOf(booking.getUserId()));
+                reason, String.valueOf(booking.getUserId()));
+        publishStatusChangedEvent(booking, previousStatus, now, reason);
 
         if (booking.getCatalogRequestId() != null) {
             CancelBookingJobByRequestIdRequest command = new CancelBookingJobByRequestIdRequest(
@@ -288,8 +291,10 @@ public class BookingService {
         OffsetDateTime now = dateTimeProvider.utcNow();
         booking.confirm();
         bookingRepository.save(booking);
+        String reason = "Catalog Service подтвердил бронирование";
         saveStatusHistory(booking, previousStatus, booking.getStatus(), now,
-                "Catalog Service подтвердил бронирование", SYSTEM_INITIATOR);
+                reason, SYSTEM_INITIATOR);
+        publishStatusChangedEvent(booking, previousStatus, now, reason);
 
         markEventProcessed(eventId, EVENT_TYPE_BOOKING_JOB_CONFIRMED);
 
@@ -326,8 +331,10 @@ public class BookingService {
         LocalDate currentDate = LocalDate.from(now);
         booking.cancel(currentDate);
         bookingRepository.save(booking);
+        String reason = "Catalog Service отклонил бронирование";
         saveStatusHistory(booking, previousStatus, booking.getStatus(), now,
-                "Catalog Service отклонил бронирование", SYSTEM_INITIATOR);
+                reason, SYSTEM_INITIATOR);
+        publishStatusChangedEvent(booking, previousStatus, now, reason);
 
         markEventProcessed(eventId, EVENT_TYPE_BOOKING_JOB_DENIED);
 
@@ -386,6 +393,21 @@ public class BookingService {
         }
         ProcessedEvent processed = ProcessedEvent.create(eventId, eventType, dateTimeProvider.utcNow());
         processedEventRepository.saveAndFlush(processed);
+    }
+
+    private void publishStatusChangedEvent(Booking booking,
+                                           BookingStatus previousStatus,
+                                           OffsetDateTime changedAt,
+                                           String reason) {
+        BookingStatusChangedEvent event = new BookingStatusChangedEvent(
+                UUID.randomUUID(),
+                booking.getId(),
+                previousStatus,
+                booking.getStatus(),
+                changedAt,
+                reason
+        );
+        bookingEventPublisher.publishBookingStatusChanged(event);
     }
 
     private void saveStatusHistory(Booking booking,

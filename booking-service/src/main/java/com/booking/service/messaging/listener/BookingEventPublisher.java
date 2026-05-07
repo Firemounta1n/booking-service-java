@@ -1,6 +1,7 @@
 package com.booking.service.messaging.listener;
 
 import com.booking.service.config.RabbitMqProperties;
+import com.booking.service.messaging.contracts.BookingStatusChangedEvent;
 import com.booking.service.messaging.contracts.CancelBookingJobByRequestIdRequest;
 import com.booking.service.messaging.contracts.CreateBookingJobRequest;
 import lombok.RequiredArgsConstructor;
@@ -60,6 +61,24 @@ public class BookingEventPublisher {
         streamBridge.send("cancelBookingJob-out-0", message);
 
         log.info("Команда CancelBookingJob отправлена в RabbitMQ");
+    }
+
+    /**
+     * Публикует доменное событие изменения статуса бронирования
+     *
+     * @param event событие изменения статуса
+     */
+    public void publishBookingStatusChanged(BookingStatusChangedEvent event) {
+        log.info("Публикация события BookingStatusChanged: bookingId={}, {} -> {}",
+                event.getBookingId(), event.getPreviousStatus(), event.getNewStatus());
+
+        Message<BookingStatusChangedEvent> message = buildRebusMessage(
+                event,
+                rabbitMqProperties.getMessageTypes().getBookingStatusChanged()
+        );
+        streamBridge.send("bookingStatusChanged-out-0", message);
+
+        log.info("Событие BookingStatusChanged отправлено в RabbitMQ");
     }
 
     /**
