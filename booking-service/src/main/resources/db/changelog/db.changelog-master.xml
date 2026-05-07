@@ -98,4 +98,25 @@
         </createIndex>
     </changeSet>
 
+    <changeSet id="4" author="booking-service">
+        <comment>Создание таблицы обработанных событий для идемпотентности</comment>
+
+        <createTable tableName="processed_events">
+            <column name="event_id" type="UUID">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="event_type" type="VARCHAR(128)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="processed_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createIndex indexName="idx_processed_events_processed_at"
+                     tableName="processed_events">
+            <column name="processed_at"/>
+        </createIndex>
+    </changeSet>
+
 </databaseChangeLog>

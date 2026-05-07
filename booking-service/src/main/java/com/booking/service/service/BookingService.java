@@ -8,12 +8,14 @@ import com.booking.service.dto.response.TopResourceResponse;
 import com.booking.service.entity.Booking;
 import com.booking.service.entity.BookingStatus;
 import com.booking.service.entity.BookingStatusHistory;
+import com.booking.service.entity.ProcessedEvent;
 import com.booking.service.exception.BusinessException;
 import com.booking.service.messaging.contracts.CancelBookingJobByRequestIdRequest;
 import com.booking.service.messaging.contracts.CreateBookingJobRequest;
 import com.booking.service.messaging.listener.BookingEventPublisher;
 import com.booking.service.repository.BookingRepository;
 import com.booking.service.repository.BookingStatusHistoryRepository;
+import com.booking.service.repository.ProcessedEventRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -50,8 +52,13 @@ public class BookingService {
 
     private static final String SYSTEM_INITIATOR = "System";
 
+    private static final String EVENT_TYPE_BOOKING_JOB_CONFIRMED = "BookingJobConfirmed";
+    private static final String EVENT_TYPE_BOOKING_JOB_DENIED = "BookingJobDenied";
+    private static final String EVENT_TYPE_CANCEL_BOOKING_ERROR = "CancelBookingJobError";
+
     private final BookingRepository bookingRepository;
     private final BookingStatusHistoryRepository bookingStatusHistoryRepository;
+    private final ProcessedEventRepository processedEventRepository;
     private final BookingEventPublisher bookingEventPublisher;
     private final CurrentDateTimeProvider dateTimeProvider;
 
@@ -247,17 +254,25 @@ public class BookingService {
 
     /**
      * Обработать событие подтверждения booking job от Catalog Service
-     * Обновляет статус бронирования на CONFIRMED
-     *
-     * @param requestId идентификатор запроса
+     * Обновляет статус бронирования на CONFIRMED.
+     * <p>
+     * Идемпотентно: повторная обработка одного и того же {@code eventId} безопасна.
+     * При гонке двух instance UNIQUE-нарушение пробросится в виде
+     * {@link org.springframework.dao.DataIntegrityViolationException} —
+     * вызывающий код должен трактовать его как «уже обработано».
      */
     @Transactional
-    public void handleBookingJobConfirmed(UUID requestId) {
-        log.info("Получено событие BookingJobConfirmed: requestId={}", requestId);
+    public void handleBookingJobConfirmed(UUID eventId, UUID requestId) {
+        log.info("Получено событие BookingJobConfirmed: eventId={}, requestId={}", eventId, requestId);
+
+        if (isAlreadyProcessed(eventId)) {
+            return;
+        }
 
         Booking booking = bookingRepository.findByCatalogRequestId(requestId).orElse(null);
         if (booking == null) {
             log.warn("Бронирование не найдено по requestId: {}. Событие проигнорировано.", requestId);
+            markEventProcessed(eventId, EVENT_TYPE_BOOKING_JOB_CONFIRMED);
             return;
         }
 
@@ -276,23 +291,30 @@ public class BookingService {
         saveStatusHistory(booking, previousStatus, booking.getStatus(), now,
                 "Catalog Service подтвердил бронирование", SYSTEM_INITIATOR);
 
+        markEventProcessed(eventId, EVENT_TYPE_BOOKING_JOB_CONFIRMED);
+
         log.info("Бронирование успешно подтверждено: id={}, новый статус={}",
                 booking.getId(), booking.getStatus());
     }
 
     /**
      * Обработать событие отклонения booking job от Catalog Service
-     * Отменяет бронирование
-     *
-     * @param requestId идентификатор запроса
+     * Отменяет бронирование.
+     * <p>
+     * Идемпотентно: повторная обработка одного и того же {@code eventId} безопасна.
      */
     @Transactional
-    public void handleBookingJobDenied(UUID requestId) {
-        log.info("Получено событие BookingJobDenied: requestId={}", requestId);
+    public void handleBookingJobDenied(UUID eventId, UUID requestId) {
+        log.info("Получено событие BookingJobDenied: eventId={}, requestId={}", eventId, requestId);
+
+        if (isAlreadyProcessed(eventId)) {
+            return;
+        }
 
         Booking booking = bookingRepository.findByCatalogRequestId(requestId).orElse(null);
         if (booking == null) {
             log.warn("Бронирование не найдено по requestId: {}. Событие проигнорировано.", requestId);
+            markEventProcessed(eventId, EVENT_TYPE_BOOKING_JOB_DENIED);
             return;
         }
 
@@ -307,22 +329,29 @@ public class BookingService {
         saveStatusHistory(booking, previousStatus, booking.getStatus(), now,
                 "Catalog Service отклонил бронирование", SYSTEM_INITIATOR);
 
+        markEventProcessed(eventId, EVENT_TYPE_BOOKING_JOB_DENIED);
+
         log.info("Бронирование успешно отменено: id={}, новый статус={}",
                 booking.getId(), booking.getStatus());
     }
 
     /**
-     * Обработать событие ошибки от Catalog Service
-     *
-     * @param requestId идентификатор запроса
+     * Обработать событие ошибки от Catalog Service из DLQ.
+     * <p>
+     * Идемпотентно: повторная обработка одного и того же {@code eventId} безопасна.
      */
     @Transactional
-    public void handleError(UUID requestId) {
-        log.info("Получено событие ошибки из DLQ: requestId={}", requestId);
+    public void handleError(UUID eventId, UUID requestId) {
+        log.info("Получено событие ошибки из DLQ: eventId={}, requestId={}", eventId, requestId);
+
+        if (isAlreadyProcessed(eventId)) {
+            return;
+        }
 
         Booking booking = bookingRepository.findByCatalogRequestId(requestId).orElse(null);
         if (booking == null) {
             log.warn("Бронирование не найдено по requestId: {}. Событие проигнорировано.", requestId);
+            markEventProcessed(eventId, EVENT_TYPE_CANCEL_BOOKING_ERROR);
             return;
         }
 
@@ -333,8 +362,30 @@ public class BookingService {
         saveStatusHistory(booking, previousStatus, booking.getStatus(), now,
                 "Catalog Service не смог обработать отмену", SYSTEM_INITIATOR);
 
+        markEventProcessed(eventId, EVENT_TYPE_CANCEL_BOOKING_ERROR);
+
         log.info("❌ Отмена не удалась, статус возвращен: id={}, статус={}",
                 booking.getId(), booking.getStatus());
+    }
+
+    private boolean isAlreadyProcessed(UUID eventId) {
+        if (eventId == null) {
+            log.warn("Получено событие без eventId — идемпотентность отключена для этого сообщения");
+            return false;
+        }
+        if (processedEventRepository.existsById(eventId)) {
+            log.warn("Событие уже было обработано ранее (дубликат): eventId={}", eventId);
+            return true;
+        }
+        return false;
+    }
+
+    private void markEventProcessed(UUID eventId, String eventType) {
+        if (eventId == null) {
+            return;
+        }
+        ProcessedEvent processed = ProcessedEvent.create(eventId, eventType, dateTimeProvider.utcNow());
+        processedEventRepository.saveAndFlush(processed);
     }
 
     private void saveStatusHistory(Booking booking,

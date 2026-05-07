@@ -9,6 +9,7 @@ import com.booking.service.exception.BusinessException;
 import com.booking.service.messaging.listener.BookingEventPublisher;
 import com.booking.service.repository.BookingRepository;
 import com.booking.service.repository.BookingStatusHistoryRepository;
+import com.booking.service.repository.ProcessedEventRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -43,6 +44,9 @@ class BookingServiceStatusHistoryTest {
     private BookingStatusHistoryRepository bookingStatusHistoryRepository;
 
     @Mock
+    private ProcessedEventRepository processedEventRepository;
+
+    @Mock
     private BookingEventPublisher bookingEventPublisher;
 
     @Mock
@@ -55,6 +59,7 @@ class BookingServiceStatusHistoryTest {
         bookingService = new BookingService(
                 bookingRepository,
                 bookingStatusHistoryRepository,
+                processedEventRepository,
                 bookingEventPublisher,
                 dateTimeProvider
         );
