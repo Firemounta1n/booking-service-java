@@ -9,13 +9,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Сохраняет доменные события в outbox.
- * Запись фиксируется в собственной транзакции, чтобы гарантировать сохранение
- * события даже если внешний код упадёт после вызова publisher'а.
+ * Сохраняет доменные события в outbox в рамках транзакции вызывающего кода.
+ * Атомарность INSERT в outbox_messages с изменением агрегата обеспечивается
+ * общим Spring transaction context — отдельная транзакция здесь недопустима.
  */
 @Service
 @RequiredArgsConstructor
@@ -26,7 +24,6 @@ public class OutboxEventPublisher {
     private final ObjectMapper objectMapper;
     private final CurrentDateTimeProvider dateTimeProvider;
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void publishBookingStatusChanged(BookingStatusChangedEvent event) {
         OutboxMessage message = OutboxMessage.forEvent(
                 event.getEventId(),
