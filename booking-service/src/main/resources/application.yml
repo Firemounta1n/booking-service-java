@@ -28,6 +28,10 @@ booking:
   cancellation:
     retry-timeout: PT5M
     retry-interval: PT1M
+  outbox:
+    poll-interval: PT5S
+    max-attempts: 5
+    batch-size: 50
 
 # RabbitMQ Rebus Integration
 rabbitmq:

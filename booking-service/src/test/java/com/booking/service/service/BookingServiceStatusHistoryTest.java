@@ -50,6 +50,9 @@ class BookingServiceStatusHistoryTest {
     private BookingEventPublisher bookingEventPublisher;
 
     @Mock
+    private OutboxEventPublisher outboxEventPublisher;
+
+    @Mock
     private CurrentDateTimeProvider dateTimeProvider;
 
     private BookingService bookingService;
@@ -61,6 +64,7 @@ class BookingServiceStatusHistoryTest {
                 bookingStatusHistoryRepository,
                 processedEventRepository,
                 bookingEventPublisher,
+                outboxEventPublisher,
                 dateTimeProvider
         );
     }

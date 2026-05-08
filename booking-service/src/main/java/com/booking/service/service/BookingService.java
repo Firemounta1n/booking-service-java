@@ -61,6 +61,7 @@ public class BookingService {
     private final BookingStatusHistoryRepository bookingStatusHistoryRepository;
     private final ProcessedEventRepository processedEventRepository;
     private final BookingEventPublisher bookingEventPublisher;
+    private final OutboxEventPublisher outboxEventPublisher;
     private final CurrentDateTimeProvider dateTimeProvider;
 
     // === КОМАНДЫ (Use Cases) ===
@@ -407,7 +408,7 @@ public class BookingService {
                 changedAt,
                 reason
         );
-        bookingEventPublisher.publishBookingStatusChanged(event);
+        outboxEventPublisher.publishBookingStatusChanged(event);
     }
 
     private void saveStatusHistory(Booking booking,

@@ -48,6 +48,9 @@ class BookingServiceRaceConditionTest {
     private BookingEventPublisher bookingEventPublisher;
 
     @Mock
+    private OutboxEventPublisher outboxEventPublisher;
+
+    @Mock
     private CurrentDateTimeProvider dateTimeProvider;
 
     private BookingService bookingService;
@@ -59,6 +62,7 @@ class BookingServiceRaceConditionTest {
                 bookingStatusHistoryRepository,
                 processedEventRepository,
                 bookingEventPublisher,
+                outboxEventPublisher,
                 dateTimeProvider
         );
     }
