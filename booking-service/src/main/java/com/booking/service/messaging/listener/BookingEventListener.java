@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.messaging.Message;
 
 import java.util.function.Consumer;
@@ -90,7 +91,12 @@ public class BookingEventListener {
         log.debug("BookingJobConfirmed: eventId={}, requestId={}",
                 event.getEventId(), event.getRequestId());
 
-        bookingService.handleBookingJobConfirmed(event.getRequestId());
+        try {
+            bookingService.handleBookingJobConfirmed(event.getEventId(), event.getRequestId());
+        } catch (DataIntegrityViolationException e) {
+            log.warn("Параллельная обработка события другим instance — считаем уже обработанным: eventId={}",
+                    event.getEventId());
+        }
     }
 
     private void handleBookingJobDenied(String payload) throws Exception {
@@ -101,7 +107,12 @@ public class BookingEventListener {
         log.debug("BookingJobDenied: eventId={}, requestId={}",
                 event.getEventId(), event.getRequestId());
 
-        bookingService.handleBookingJobDenied(event.getRequestId());
+        try {
+            bookingService.handleBookingJobDenied(event.getEventId(), event.getRequestId());
+        } catch (DataIntegrityViolationException e) {
+            log.warn("Параллельная обработка события другим instance — считаем уже обработанным: eventId={}",
+                    event.getEventId());
+        }
     }
 
     private void handleCancelBookingError(String payload) throws Exception {
@@ -110,9 +121,15 @@ public class BookingEventListener {
                 CancelBookingJobByRequestIdRequest.class
         );
 
-        log.debug("Команда отмены из DLQ: requestId={}", command.getRequestId());
+        log.debug("Команда отмены из DLQ: eventId={}, requestId={}",
+                command.getEventId(), command.getRequestId());
 
-        bookingService.handleError(command.getRequestId());
+        try {
+            bookingService.handleError(command.getEventId(), command.getRequestId());
+        } catch (DataIntegrityViolationException e) {
+            log.warn("Параллельная обработка DLQ-сообщения другим instance — считаем уже обработанным: eventId={}",
+                    command.getEventId());
+        }
     }
 
     /**

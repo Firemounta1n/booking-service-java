@@ -94,13 +94,16 @@ public class Booking {
     }
 
     /**
-     * Подтвердить бронирование (переход из AwaitConfirmation в Confirmed)
+     * Подтвердить бронирование (переход из AwaitConfirmation или CancellationPending в Confirmed)
      */
     public void confirm() {
-        if (status != BookingStatus.AWAIT_CONFIRMATION) {
-            throw new BusinessException("Статус заявки некорректен, заявка должна быть в статусе " + BookingStatus.AWAIT_CONFIRMATION);
+        if (status != BookingStatus.AWAIT_CONFIRMATION && status != BookingStatus.CANCELLATION_PENDING) {
+            throw new BusinessException("Статус заявки некорректен, заявка должна быть в статусе "
+                    + BookingStatus.AWAIT_CONFIRMATION + " или " + BookingStatus.CANCELLATION_PENDING);
         }
         this.status = BookingStatus.CONFIRMED;
+        this.previousStatus = null;
+        this.cancellationSentAt = null;
     }
 
     /**

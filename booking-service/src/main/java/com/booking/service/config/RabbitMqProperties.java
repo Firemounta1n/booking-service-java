@@ -63,6 +63,11 @@ public class RabbitMqProperties {
 
         private String bookingJobDenied =
             "BookingService.Catalog.Async.Api.Contracts.Events.BookingJobDenied, BookingService.Catalog.Async.Api.Contracts";
-    }
 
+        /**
+         * Доменные события (исходящие)
+         */
+        private String bookingStatusChanged =
+            "BookingService.Booking.Events.BookingStatusChangedEvent, BookingService.Booking.Events";
+    }
 }

@@ -42,6 +42,12 @@ spring:
         cancelBookingJob-out-0:
           destination: booking-service-topics
           content-type: application/json
+        # Outbound: доменные события Booking Service
+        bookingStatusChanged-out-0:
+          destination: booking-domain-events
+          content-type: application/json
+          producer:
+            required-groups: booking-status-events
         # Inbound: события от Catalog Service
         bookingEvents-in-0:
           destination: booking-service-topics
@@ -61,6 +67,10 @@ spring:
               exchange-type: topic
               routing-key-expression: "headers['${rabbitmq.rebus.header-msg-type}']"
           cancelBookingJob-out-0:
+            producer:
+              exchange-type: topic
+              routing-key-expression: "headers['${rabbitmq.rebus.header-msg-type}']"
+          bookingStatusChanged-out-0:
             producer:
               exchange-type: topic
               routing-key-expression: "headers['${rabbitmq.rebus.header-msg-type}']"

@@ -23,6 +23,16 @@ springdoc:
 server:
   port: 8001
 
+# Booking domain settings
+booking:
+  cancellation:
+    retry-timeout: PT5M
+    retry-interval: PT1M
+  outbox:
+    poll-interval: PT5S
+    max-attempts: 5
+    batch-size: 50
+
 # RabbitMQ Rebus Integration
 rabbitmq:
   rebus:
@@ -42,3 +52,5 @@ rabbitmq:
       # События (входящие от Catalog Service)
       booking-job-confirmed: BookingService.Catalog.Async.Api.Contracts.Events.BookingJobConfirmed, BookingService.Catalog.Async.Api.Contracts
       booking-job-denied: BookingService.Catalog.Async.Api.Contracts.Events.BookingJobDenied, BookingService.Catalog.Async.Api.Contracts
+      # Доменные события (исходящие)
+      booking-status-changed: "BookingService.Booking.Events.BookingStatusChangedEvent, BookingService.Booking.Events"
